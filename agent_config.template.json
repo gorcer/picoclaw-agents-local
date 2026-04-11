@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "agents": {
+    "defaults": {
+      "workspace": "/workspace",
+      "restrict_to_workspace": false,
+      "allow_read_outside_workspace": true,
+      "model_name": "minimax2",
+      "max_tokens": 32768,
+      "max_tool_iterations": 50
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "token": "{{TELEGRAM_TOKEN}}",
+      "allow_from": ["{{USER_CHAT_ID}}"],
+      "proxy": "http://host.docker.internal:10808"
+    }
+  },
+  "model_list": [{
+    "model_name": "minimax2",
+    "model": "minimax/MiniMax-M2.7",
+    "api_base": "http://62.106.66.13:3000/v1",
+    "api_keys": ["{{API_KEY}}"],
+    "extra_body": {"stream": false}
+  }]
+}

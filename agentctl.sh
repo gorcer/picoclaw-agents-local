@@ -22,13 +22,14 @@ set -e
 
 HOST="${SSH_HOST:-srv}"
 AGENTS_DIR="$HOME/picoclaw-agents"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE="$SCRIPT_DIR/agent_config.template.json"
 
 # Default disk limit in MB
 DEFAULT_SIZE_MB=100
 
-cmd="$1"
-name="$2"
-size_mb="${3:-$DEFAULT_SIZE_MB}"
+# Default user chat ID
+DEFAULT_USER_CHAT_ID="141455495"
 
 sshsrv() {
     ssh "$HOST" "$@"
@@ -57,7 +58,7 @@ start_agent() {
             -e HTTPS_PROXY=http://host.docker.internal:10808 \
             -e HTTP_PROXY=http://host.docker.internal:10808 \
             -e no_proxy='*' \
-            picoclaw:1.0
+            picoclaw:latest
 
         echo 'Started. Recent logs:'
         docker logs picoclaw-$agent --tail 5
@@ -97,29 +98,35 @@ create_agent() {
     local agent="$1"
     local token="$2"
     local api_key="$3"
-    local limit="${4:-$DEFAULT_SIZE_MB}"
+    local user_chat_id="${4:-$DEFAULT_USER_CHAT_ID}"
+    local limit="${5:-$DEFAULT_SIZE_MB}"
 
     if [[ -z "$agent" || -z "$token" || -z "$api_key" ]]; then
-        echo "Error: name, telegram_token, and llm_api_key required"
-        echo "Usage: agentctl.sh create <name> <telegram_token> <llm_api_key> [size_mb]"
+        echo "Error: name, telegram_token, and api_key required"
+        echo "Usage: agentctl.sh create <name> <telegram_token> <api_key> [user_chat_id] [size_mb]"
+        exit 1
+    fi
+
+    if [[ ! -f "$TEMPLATE" ]]; then
+        echo "Error: template not found at $TEMPLATE"
         exit 1
     fi
 
     echo "Creating agent '$agent' with ${limit}MB disk limit..."
 
-    # Create config on srv
+    # Create config on srv from template
     sshsrv "
         mkdir -p $AGENTS_DIR/$agent
+        chmod 755 $AGENTS_DIR/$agent
 
-        cat > $AGENTS_DIR/$agent/agent_config.json << 'EOF'
-{
-  \"telegram_token\": \"$token\",
-  \"llm_api_key\": \"$api_key\",
-  \"proxy\": \"http://host.docker.internal:10808\"
-}
-EOF
+        # Copy template and replace placeholders
+        sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
+            -e 's/{{API_KEY}}/$api_key/g' \
+            -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
+            '$TEMPLATE' > $AGENTS_DIR/$agent/agent_config.json
 
         chmod 600 $AGENTS_DIR/$agent/agent_config.json
+        cat $AGENTS_DIR/$agent/agent_config.json
     "
 
     echo "Config created. Starting agent..."
@@ -167,21 +174,18 @@ case "$cmd" in
         delete_agent "$name"
         ;;
     create)
-        if [[ -z "$name" ]]; then
-            echo "Error: name, telegram_token, and llm_api_key required"
-            echo "Usage: agentctl.sh create <name> <telegram_token> <llm_api_key> [size_mb]"
-            exit 1
-        fi
+        agent="$2"
         token="$3"
         api_key="$4"
-        size_mb="${5:-$DEFAULT_SIZE_MB}"
-        create_agent "$name" "$token" "$api_key" "$size_mb"
+        user_chat_id="${5:-$DEFAULT_USER_CHAT_ID}"
+        size_mb="${6:-$DEFAULT_SIZE_MB}"
+        create_agent "$agent" "$token" "$api_key" "$user_chat_id" "$size_mb"
         ;;
     *)
         echo "Usage: agentctl.sh <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  create <name> <token> <api_key> [size_mb] - Create and start new agent"
+        echo "  create <name> <token> <api_key> [user_chat_id] [size_mb] - Create and start new agent"
         echo "  start <name> [size_mb]  - Start existing agent"
         echo "  stop <name>            - Stop agent"
         echo "  restart <name>         - Restart agent"
