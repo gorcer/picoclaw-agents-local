@@ -49,13 +49,13 @@ start_agent() {
         docker rm -f picoclaw-$agent 2>/dev/null || true
 
         # Run with storage limit
+        # Note: picoclaw reads /root/.picoclaw/config.json - mount dir so config.json is at that path
         docker run -d \
             --name picoclaw-$agent \
             --restart unless-stopped \
             --storage-opt size=${limit}M \
             --add-host=host.docker.internal:host-gateway \
-            -v $AGENTS_DIR/$agent/agent_config.json:/app/agent_config.json:ro \
-            -e PICOCLAW_CONFIG=/app/agent_config.json \
+            -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
             -e HTTPS_PROXY=http://host.docker.internal:10808 \
             -e HTTP_PROXY=http://host.docker.internal:10808 \
             -e no_proxy='*' \
@@ -124,10 +124,10 @@ create_agent() {
         sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
             -e 's/{{API_KEY}}/$api_key/g' \
             -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
-            '$TEMPLATE' > $AGENTS_DIR/$agent/agent_config.json
+            '$TEMPLATE' > $AGENTS_DIR/$agent/config.json
 
-        chmod 600 $AGENTS_DIR/$agent/agent_config.json
-        cat $AGENTS_DIR/$agent/agent_config.json
+        chmod 600 $AGENTS_DIR/$agent/config.json
+        cat $AGENTS_DIR/$agent/config.json
     "
 
     echo "Config created. Starting agent..."
