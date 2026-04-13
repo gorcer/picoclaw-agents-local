@@ -1,0 +1,4 @@
+# Yandex Speech Credentials
+# Заполни своими значениями
+api_key: YOUR_API_KEY_HERE
+folder_id: YOUR_FOLDER_ID_HERE
