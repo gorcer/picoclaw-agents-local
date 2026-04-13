@@ -10,14 +10,16 @@
     "telegram": {
       "enabled": true,
       "token": "{{TELEGRAM_TOKEN}}",
-      "allow_from": ["{{USER_CHAT_ID}}"]
+      "allow_from": ["{{USER_CHAT_ID}}"],
+      "streaming": {
+        "enabled": false
+      }
     }
   },
   "model_list": [{
     "model_name": "minimax",
     "model": "MiniMax-M2.7",
     "api_base": "http://62.106.66.13:3000/v1",
-    "api_keys": ["{{API_KEY}}"],
-    "extra_body": {"stream": false}
+    "api_keys": ["{{API_KEY}}"]
   }]
 }

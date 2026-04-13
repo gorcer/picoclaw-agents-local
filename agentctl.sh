@@ -20,6 +20,7 @@
 
 set -e
 
+cmd="$1"
 HOST="${SSH_HOST:-srv}"
 AGENTS_DIR="$HOME/picoclaw-agents"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

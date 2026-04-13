@@ -91,6 +91,36 @@ picoclaw-agents-local/
 
 ⚠️ Не запускай непроверенные агенты без нужды.
 
+## OmniRoute Integration
+
+PicoClaw работает с OmniRoute как прокси для LLM запросов.
+
+### Важно: Model Alias
+
+OmniRoute требует model alias для резолвинга моделей без prefix.
+
+**Создание alias** (на сервере с OmniRoute):
+```bash
+curl -X PUT 'http://127.0.0.1:3000/api/models/alias' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer ТВОЙ_API_KEY' \
+  -d '{"alias":"MiniMax-M2.7","model":"minimax/MiniMax-M2.7"}'
+```
+
+Где:
+- `alias` — имя модели без prefix (то что отправляет picoclaw)
+- `model` — полное имя с prefix (что ожидает провайдер)
+
+**Проверить существующие alias:**
+```bash
+curl 'http://127.0.0.1:3000/api/models/alias' \
+  -H 'Authorization: Bearer ТВОЙ_API_KEY'
+```
+
+### Streaming
+
+OmniRoute по умолчанию возвращает SSE (streaming) ответы. PicoClaw Telegram channel работает с `streaming.enabled: false` — это обязательно для корректного парсинга ответов.
+
 ## Прокси
 
 - xray: socks5 на `127.0.0.1:10808` (host)
