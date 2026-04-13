@@ -3,7 +3,8 @@
   "agents": {
     "defaults": {
       "workspace": "/workspace",
-      "model_name": "minimax"
+      "model_name": "minimax",
+      "restrict_to_workspace": false
     }
   },
   "channels": {
