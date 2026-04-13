@@ -124,10 +124,22 @@ create_agent() {
         sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
             -e 's/{{API_KEY}}/$api_key/g' \
             -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
-            '$TEMPLATE' > $AGENTS_DIR/$agent/agent_config.json
+            '$TEMPLATE' > $AGENTS_DIR/$agent/config.json
 
-        chmod 600 $AGENTS_DIR/$agent/agent_config.json
-        cat $AGENTS_DIR/$agent/agent_config.json
+        chmod 600 $AGENTS_DIR/$agent/config.json
+
+        # Copy skills directory if exists
+        if [ -d '$SCRIPT_DIR/skills' ]; then
+            cp -r '$SCRIPT_DIR/skills' $AGENTS_DIR/$agent/
+        fi
+
+        # Copy yandex-stt script
+        mkdir -p $AGENTS_DIR/$agent/.scripts
+        if [ -f '$SCRIPT_DIR/scripts/yandex_stt.py' ]; then
+            cp '$SCRIPT_DIR/scripts/yandex_stt.py' $AGENTS_DIR/$agent/.scripts/
+        fi
+
+        cat $AGENTS_DIR/$agent/config.json
     "
 
     echo "Config created. Starting agent..."
