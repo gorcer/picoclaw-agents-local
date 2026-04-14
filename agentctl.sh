@@ -127,6 +127,28 @@ create_agent() {
             '$TEMPLATE' > $AGENTS_DIR/$agent/config.json
 
         chmod 600 $AGENTS_DIR/$agent/config.json
+
+        # Copy workspace templates
+        if [ -d '$SCRIPT_DIR/templates' ]; then
+            cp -r '$SCRIPT_DIR/templates/'* $AGENTS_DIR/$agent/
+            # Replace agent name placeholder
+            for f in $AGENTS_DIR/$agent/*.md; do
+                sed -i 's/{{AGENT_NAME}}/$agent/g' "$f" 2>/dev/null || true
+            done
+        fi
+
+        # Copy skills
+        if [ -d '$SCRIPT_DIR/skills' ]; then
+            mkdir -p $AGENTS_DIR/$agent/skills
+            cp -r '$SCRIPT_DIR/skills/'* $AGENTS_DIR/$agent/skills/
+        fi
+
+        # Copy yandex-stt script
+        if [ -d '$SCRIPT_DIR/scripts' ]; then
+            mkdir -p $AGENTS_DIR/$agent/.scripts
+            cp -r '$SCRIPT_DIR/scripts/'* $AGENTS_DIR/$agent/.scripts/
+        fi
+
         cat $AGENTS_DIR/$agent/config.json
     "
 
