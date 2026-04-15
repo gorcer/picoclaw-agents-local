@@ -43,8 +43,6 @@ start_agent() {
 
     echo "Starting agent '$agent' with ${limit}MB disk limit..."
 
-    cd "$AGENTS_DIR/$agent"
-
     # Stop existing container
     docker rm -f picoclaw-$agent 2>/dev/null || true
 
@@ -54,7 +52,6 @@ start_agent() {
         --restart unless-stopped \
         --memory=64m \
         --cpus=0.25 \
-        --storage-opt size=${limit}M \
         --add-host=host.docker.internal:host-gateway \
         -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
         -e HTTPS_PROXY=http://host.docker.internal:10808 \
