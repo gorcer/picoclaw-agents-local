@@ -1,9 +1,10 @@
 #!/bin/bash
 # Agent Control Script
+# Deploys agents locally in /home/openclaw/picoclaw-agents/
 # Usage: agentctl.sh <command> [args]
 #
 # Commands:
-#   create <name> <token> [user_chat_id] [size_mb] [server:path] - Create and start new agent
+#   create <name> <token> [user_chat_id] [size_mb] - Create and start new agent
 #   start <name> [size_mb]  - Start agent (default: 100MB disk limit)
 #   stop <name>             - Stop agent
 #   restart <name>          - Restart agent
@@ -12,29 +13,23 @@
 #   delete <name>           - Delete agent and container
 #
 # Examples:
-#   agentctl.sh create mybot <token>                    # default srv
-#   agentctl.sh create mybot <token> 123 500            # custom user, 500MB disk
-#   agentctl.sh create mybot <token> 123 500 df2:/home/agents/  # custom server and path
-#
-# Environment / Defaults:
-#   SSH_HOST      - default SSH host (default: srv)
-#   AGENTS_DIR    - default agents directory (default: /home/openclaw/picoclaw-agents)
-#   DEPLOY_DIR    - default deploy directory (default: $AGENTS_DIR/deploy)
+#   agentctl.sh create mybot <token>
+#   agentctl.sh create mybot <token> 123 500
+#   agentctl.sh start runner 500
 
 set -e
 
 cmd="$1"
-
-# Default server and directories
-DEFAULT_HOST="srv"
-DEFAULT_AGENTS_DIR="/home/openclaw/picoclaw-agents"
-
-# Can be overridden via env
-HOST="${SSH_HOST:-$DEFAULT_HOST}"
-AGENTS_DIR="${AGENTS_DIR:-$DEFAULT_AGENTS_DIR}"
-DEPLOY_DIR="${DEPLOY_DIR:-$AGENTS_DIR/deploy}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$SCRIPT_DIR"
+AGENTS_DIR="/home/openclaw/picoclaw-agents"
+
+# Load .env if exists
+if [[ -f "$DEPLOY_DIR/.env" ]]; then
+    set -a
+    source "$DEPLOY_DIR/.env"
+    set +a
+fi
 
 # Default disk limit in MB
 DEFAULT_SIZE_MB=100
@@ -42,68 +37,61 @@ DEFAULT_SIZE_MB=100
 # Default user chat ID
 DEFAULT_USER_CHAT_ID="141455495"
 
-sshsrv() {
-    ssh "$HOST" "$@"
-}
-
 start_agent() {
     local agent="$1"
     local limit="${2:-$DEFAULT_SIZE_MB}"
 
     echo "Starting agent '$agent' with ${limit}MB disk limit..."
 
-    sshsrv "
-        cd $AGENTS_DIR/$agent
+    cd "$AGENTS_DIR/$agent"
 
-        # Stop existing container
-        docker rm -f picoclaw-$agent 2>/dev/null || true
+    # Stop existing container
+    docker rm -f picoclaw-$agent 2>/dev/null || true
 
-        # Run with storage limit
-        # Note: picoclaw reads /root/.picoclaw/config.json - mount dir so config.json is at that path
-        docker run -d \
-            --name picoclaw-$agent \
-            --restart unless-stopped \
-            --memory=64m \
-            --cpus=0.25 \
-            --storage-opt size=${limit}M \
-            --add-host=host.docker.internal:host-gateway \
-            -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
-            -e HTTPS_PROXY=http://host.docker.internal:10808 \
-            -e HTTP_PROXY=http://host.docker.internal:10808 \
-            -e no_proxy='*' \
-            ghcr.io/sipeed/picoclaw:latest
+    # Run with storage limit
+    docker run -d \
+        --name picoclaw-$agent \
+        --restart unless-stopped \
+        --memory=64m \
+        --cpus=0.25 \
+        --storage-opt size=${limit}M \
+        --add-host=host.docker.internal:host-gateway \
+        -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
+        -e HTTPS_PROXY=http://host.docker.internal:10808 \
+        -e HTTP_PROXY=http://host.docker.internal:10808 \
+        -e no_proxy='*' \
+        ghcr.io/sipeed/picoclaw:latest
 
-        echo 'Started. Recent logs:'
-        docker logs picoclaw-$agent --tail 5
-    "
+    echo "Started. Recent logs:"
+    docker logs picoclaw-$agent --tail 5
 }
 
 stop_agent() {
     local agent="$1"
     echo "Stopping agent '$agent'..."
-    sshsrv "docker rm -f picoclaw-$agent"
+    docker rm -f picoclaw-$agent
 }
 
 restart_agent() {
     local agent="$1"
     echo "Restarting agent '$agent'..."
-    sshsrv "docker restart picoclaw-$agent"
+    docker restart picoclaw-$agent
 }
 
 status_agent() {
     local agent="$1"
-    sshsrv "docker ps -a --filter name=picoclaw-$agent --format 'table {{.Names}}\t{{.Status}}\t{{.Size}}'"
+    docker ps -a --filter name=picoclaw-$agent --format 'table {{.Names}}\t{{.Status}}\t{{.Size}}'
 }
 
 list_agents() {
     echo "=== PicoClaw Agents ==="
-    sshsrv "docker ps -a --filter 'name=picoclaw-' --format 'table {{.Names}}\t{{.Status}}\t{{.Size}}'"
+    docker ps -a --filter 'name=picoclaw-' --format 'table {{.Names}}\t{{.Status}}\t{{.Size}}'
 }
 
 delete_agent() {
     local agent="$1"
     echo "Deleting agent '$agent'..."
-    sshsrv "docker rm -f picoclaw-$agent"
+    docker rm -f picoclaw-$agent
     echo "Container removed. Config preserved at $AGENTS_DIR/$agent/"
 }
 
@@ -112,27 +100,16 @@ create_agent() {
     local token="$2"
     local user_chat_id="${3:-$DEFAULT_USER_CHAT_ID}"
     local limit="${4:-$DEFAULT_SIZE_MB}"
-    local server_path="${5:-}"
-    local omniroute_admin_key="${OMNIROUTE_ADMIN_KEY:-}"
-
-    # Parse server:path if provided
-    if [[ -n "$server_path" ]]; then
-        HOST="${server_path%%:*}"
-        AGENTS_DIR="${server_path#*:}"
-        DEPLOY_DIR="$AGENTS_DIR/deploy"
-        echo "Using server: $HOST"
-        echo "Using agents dir: $AGENTS_DIR"
-    fi
 
     if [[ -z "$agent" || -z "$token" ]]; then
         echo "Error: name and telegram_token required"
-        echo "Usage: agentctl.sh create <name> <telegram_token> [user_chat_id] [size_mb] [server:path]"
+        echo "Usage: agentctl.sh create <name> <telegram_token> [user_chat_id] [size_mb]"
         exit 1
     fi
 
-    if [[ -z "$omniroute_admin_key" ]]; then
-        echo "Error: OMNIROUTE_ADMIN_KEY not set"
-        echo "Please set OMNIROUTE_ADMIN_KEY in $DEPLOY_DIR/.env on server $HOST"
+    if [[ -z "$OMNIROUTE_ADMIN_KEY" ]]; then
+        echo "Error: OMNIROUTE_ADMIN_KEY not set in .env file"
+        echo "Please create .env file with OMNIROUTE_ADMIN_KEY"
         exit 1
     fi
 
@@ -142,7 +119,7 @@ create_agent() {
     echo "Creating OmniRoute API key..."
     local omniroute_response
     omniroute_response=$(curl -s -X POST "http://62.106.66.13:3000/api/keys" \
-        -H "Authorization: Bearer $omniroute_admin_key" \
+        -H "Authorization: Bearer $OMNIROUTE_ADMIN_KEY" \
         -H "Content-Type: application/json" \
         -d "{\"name\": \"$agent\"}")
 
@@ -156,48 +133,42 @@ create_agent() {
 
     echo "OmniRoute key created: $agent_api_key"
 
-    # Create config on srv from template
-    sshsrv "
-        set -a
-        source '$DEPLOY_DIR/.env'
-        set +a
+    # Create config from template
+    mkdir -p "$AGENTS_DIR/$agent"
+    chmod 755 "$AGENTS_DIR/$agent"
 
-        mkdir -p $AGENTS_DIR/$agent
-        chmod 755 $AGENTS_DIR/$agent
+    sed -e "s/{{TELEGRAM_TOKEN}}/$token/g" \
+        -e "s/{{API_KEY}}/$agent_api_key/g" \
+        -e "s/{{USER_CHAT_ID}}/$user_chat_id/g" \
+        "$DEPLOY_DIR/agent_config.template.json" > "$AGENTS_DIR/$agent/config.json"
 
-        # Copy template and replace placeholders
-        sed -e 's/{{TELEGRAM_TOKEN}}/'\"$token\"'/g' \
-            -e 's/{{API_KEY}}/'\"$agent_api_key\"'/g' \
-            -e 's/{{USER_CHAT_ID}}/'\"$user_chat_id\"'/g' \
-            '$DEPLOY_DIR/agent_config.template.json' > $AGENTS_DIR/$agent/config.json
+    chmod 600 "$AGENTS_DIR/$agent/config.json"
 
-        chmod 600 $AGENTS_DIR/$agent/config.json
+    # Copy workspace templates
+    if [[ -d "$DEPLOY_DIR/templates" ]]; then
+        cp -r "$DEPLOY_DIR/templates/"* "$AGENTS_DIR/$agent/"
+        for f in "$AGENTS_DIR/$agent"/*.md; do
+            sed -i "s/{{AGENT_NAME}}/$agent/g" "$f" 2>/dev/null || true
+        done
+    fi
 
-        # Copy workspace templates
-        if [ -d '$DEPLOY_DIR/templates' ]; then
-            cp -r '$DEPLOY_DIR/templates/'* $AGENTS_DIR/$agent/
-            # Replace agent name placeholder
-            for f in $AGENTS_DIR/$agent/*.md; do
-                sed -i 's/{{AGENT_NAME}}/$agent/g' \"\$f\" 2>/dev/null || true
-            done
-        fi
+    # Copy skills
+    if [[ -d "$DEPLOY_DIR/skills" ]]; then
+        mkdir -p "$AGENTS_DIR/$agent/skills"
+        cp -r "$DEPLOY_DIR/skills/"* "$AGENTS_DIR/$agent/skills/"
+    fi
 
-        # Copy skills
-        if [ -d '$DEPLOY_DIR/skills' ]; then
-            mkdir -p $AGENTS_DIR/$agent/skills
-            cp -r '$DEPLOY_DIR/skills/'* $AGENTS_DIR/$agent/skills/
-        fi
+    # Copy scripts
+    if [[ -d "$DEPLOY_DIR/scripts" ]]; then
+        mkdir -p "$AGENTS_DIR/$agent/.scripts"
+        cp -r "$DEPLOY_DIR/scripts/"* "$AGENTS_DIR/$agent/.scripts/"
+    fi
 
-        # Copy yandex-stt script
-        if [ -d '$DEPLOY_DIR/scripts' ]; then
-            mkdir -p $AGENTS_DIR/$agent/.scripts
-            cp -r '$DEPLOY_DIR/scripts/'* $AGENTS_DIR/$agent/.scripts/
-        fi
+    echo "Config created:"
+    cat "$AGENTS_DIR/$agent/config.json"
 
-        cat $AGENTS_DIR/$agent/config.json
-    "
-
-    echo "Config created. Starting agent..."
+    echo ""
+    echo "Starting agent..."
     start_agent "$agent" "$limit"
 }
 
@@ -246,24 +217,22 @@ case "$cmd" in
         token="$3"
         user_chat_id="${4:-$DEFAULT_USER_CHAT_ID}"
         size_mb="${5:-$DEFAULT_SIZE_MB}"
-        server_path="${6:-}"
-        create_agent "$agent" "$token" "$user_chat_id" "$size_mb" "$server_path"
+        create_agent "$agent" "$token" "$user_chat_id" "$size_mb"
         ;;
     *)
         echo "Usage: agentctl.sh <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  create <name> <telegram_token> [user_chat_id] [size_mb] [server:path] - Create and start new agent"
+        echo "  create <name> <telegram_token> [user_chat_id] [size_mb] - Create and start new agent"
         echo "  start <name> [size_mb]  - Start existing agent"
         echo "  stop <name>            - Stop agent"
         echo "  restart <name>         - Restart agent"
-        echo "  status [name]          - Show status"
-        echo "  list                   - List all agents"
-        echo "  delete <name>          - Delete agent container"
+        echo "  status [name]           - Show status"
+        echo "  list                    - List all agents"
+        echo "  delete <name>           - Delete agent container"
         echo ""
         echo "Examples:"
         echo "  agentctl.sh create mybot <token>"
         echo "  agentctl.sh create mybot <token> 123 500"
-        echo "  agentctl.sh create mybot <token> 123 100 df2:/home/agents/"
         ;;
 esac
