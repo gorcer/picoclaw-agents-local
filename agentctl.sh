@@ -54,6 +54,8 @@ start_agent() {
         --cpus=0.25 \
         --add-host=host.docker.internal:host-gateway \
         -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
+        -v $DEPLOY_DIR/skills:/workspace/skills:ro \
+        -v $AGENTS_DIR/$agent/.scripts:/root/.scripts:rw \
         -e HTTPS_PROXY=http://host.docker.internal:10808 \
         -e HTTP_PROXY=http://host.docker.internal:10808 \
         -e no_proxy='*' \
@@ -153,17 +155,8 @@ create_agent() {
         done
     fi
 
-    # Copy skills
-    if [[ -d "$DEPLOY_DIR/skills" ]]; then
-        mkdir -p "$AGENTS_DIR/$agent/skills"
-        cp -r "$DEPLOY_DIR/skills/"* "$AGENTS_DIR/$agent/skills/"
-    fi
-
-    # Copy scripts
-    if [[ -d "$DEPLOY_DIR/scripts" ]]; then
-        mkdir -p "$AGENTS_DIR/$agent/.scripts"
-        cp -r "$DEPLOY_DIR/scripts/"* "$AGENTS_DIR/$agent/.scripts/"
-    fi
+    # Create .scripts directory (will be mounted from deploy)
+    mkdir -p "$AGENTS_DIR/$agent/.scripts"
 
     echo "Config created:"
     cat "$AGENTS_DIR/$agent/config.json"
