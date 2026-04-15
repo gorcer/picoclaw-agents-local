@@ -68,7 +68,7 @@ start_agent() {
             -e HTTPS_PROXY=http://host.docker.internal:10808 \
             -e HTTP_PROXY=http://host.docker.internal:10808 \
             -e no_proxy='*' \
-            picoclaw:latest
+            ghcr.io/sipeed/picoclaw:latest
 
         echo 'Started. Recent logs:'
         docker logs picoclaw-$agent --tail 5
@@ -148,7 +148,9 @@ create_agent() {
     echo "OmniRoute key created: $agent_api_key"
 
     # Create config on srv from template
+    # Note: Remote paths are fixed - deploy directory on srv
     sshsrv "
+        DEPLOY_DIR=/home/openclaw/picoclaw-agents/deploy
         mkdir -p $AGENTS_DIR/$agent
         chmod 755 $AGENTS_DIR/$agent
 
@@ -156,29 +158,29 @@ create_agent() {
         sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
             -e 's/{{API_KEY}}/$agent_api_key/g' \
             -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
-            '$TEMPLATE' > $AGENTS_DIR/$agent/config.json
+            '\$DEPLOY_DIR/agent_config.template.json' > $AGENTS_DIR/$agent/config.json
 
         chmod 600 $AGENTS_DIR/$agent/config.json
 
         # Copy workspace templates
-        if [ -d '$SCRIPT_DIR/templates' ]; then
-            cp -r '$SCRIPT_DIR/templates/'* $AGENTS_DIR/$agent/
+        if [ -d '\$DEPLOY_DIR/templates' ]; then
+            cp -r '\$DEPLOY_DIR/templates/'* $AGENTS_DIR/$agent/
             # Replace agent name placeholder
             for f in $AGENTS_DIR/$agent/*.md; do
-                sed -i 's/{{AGENT_NAME}}/$agent/g' "$f" 2>/dev/null || true
+                sed -i 's/{{AGENT_NAME}}/$agent/g' "\$f" 2>/dev/null || true
             done
         fi
 
         # Copy skills
-        if [ -d '$SCRIPT_DIR/skills' ]; then
+        if [ -d '\$DEPLOY_DIR/skills' ]; then
             mkdir -p $AGENTS_DIR/$agent/skills
-            cp -r '$SCRIPT_DIR/skills/'* $AGENTS_DIR/$agent/skills/
+            cp -r '\$DEPLOY_DIR/skills/'* $AGENTS_DIR/$agent/skills/
         fi
 
         # Copy yandex-stt script
-        if [ -d '$SCRIPT_DIR/scripts' ]; then
+        if [ -d '\$DEPLOY_DIR/scripts' ]; then
             mkdir -p $AGENTS_DIR/$agent/.scripts
-            cp -r '$SCRIPT_DIR/scripts/'* $AGENTS_DIR/$agent/.scripts/
+            cp -r '\$DEPLOY_DIR/scripts/'* $AGENTS_DIR/$agent/.scripts/
         fi
 
         cat $AGENTS_DIR/$agent/config.json
