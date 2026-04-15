@@ -54,7 +54,7 @@ start_agent() {
         --cpus=0.25 \
         --add-host=host.docker.internal:host-gateway \
         -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
-        -v $DEPLOY_DIR/skills:/workspace/skills:ro \
+        -v $DEPLOY_DIR/skills:/workspace/skills:rw \
         -v $AGENTS_DIR/$agent/.scripts:/root/.scripts:rw \
         -e HTTPS_PROXY=http://host.docker.internal:10808 \
         -e HTTP_PROXY=http://host.docker.internal:10808 \
