@@ -53,6 +53,8 @@ start_agent() {
         docker run -d \
             --name picoclaw-$agent \
             --restart unless-stopped \
+            --memory=64m \
+            --cpus=0.25 \
             --storage-opt size=${limit}M \
             --add-host=host.docker.internal:host-gateway \
             -v $AGENTS_DIR/$agent:/root/.picoclaw:rw \
