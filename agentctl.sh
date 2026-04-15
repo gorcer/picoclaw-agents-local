@@ -135,7 +135,7 @@ create_agent() {
     omniroute_response=$(curl -s -X POST "http://62.106.66.13:3000/api/keys" \
         -H "Authorization: Bearer $omniroute_admin_key" \
         -H "Content-Type: application/json" \
-        -d "{\"Name\": \"$agent\"}")
+        -d "{\"name\": \"$agent\"}")
     
     local agent_api_key
     agent_api_key=$(echo "$omniroute_response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
