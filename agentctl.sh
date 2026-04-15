@@ -98,13 +98,13 @@ delete_agent() {
 create_agent() {
     local agent="$1"
     local token="$2"
-    local api_key="$3"
+    local omniroute_admin_key="${3:-sk-458728dc98d56c7a-a83bf1-64af09f8}"
     local user_chat_id="${4:-$DEFAULT_USER_CHAT_ID}"
     local limit="${5:-$DEFAULT_SIZE_MB}"
 
-    if [[ -z "$agent" || -z "$token" || -z "$api_key" ]]; then
-        echo "Error: name, telegram_token, and api_key required"
-        echo "Usage: agentctl.sh create <name> <telegram_token> <api_key> [user_chat_id] [size_mb]"
+    if [[ -z "$agent" || -z "$token" ]]; then
+        echo "Error: name and telegram_token required"
+        echo "Usage: agentctl.sh create <name> <telegram_token> [omniroute_admin_key] [user_chat_id] [size_mb]"
         exit 1
     fi
 
@@ -115,6 +115,24 @@ create_agent() {
 
     echo "Creating agent '$agent' with ${limit}MB disk limit..."
 
+    # Create OmniRoute API key first
+    echo "Creating OmniRoute API key..."
+    local omniroute_response
+    omniroute_response=$(curl -s -X POST "http://62.106.66.13:3000/api/keys" \
+        -H "Authorization: Bearer $omniroute_admin_key" \
+        -H "Content-Type: application/json" \
+        -d "{\"Name\": \"$agent\"}")
+    
+    local agent_api_key
+    agent_api_key=$(echo "$omniroute_response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('key',''))" 2>/dev/null)
+    
+    if [[ -z "$agent_api_key" ]]; then
+        echo "Error: Failed to create OmniRoute key. Response: $omniroute_response"
+        exit 1
+    fi
+    
+    echo "OmniRoute key created: $agent_api_key"
+
     # Create config on srv from template
     sshsrv "
         mkdir -p $AGENTS_DIR/$agent
@@ -122,7 +140,7 @@ create_agent() {
 
         # Copy template and replace placeholders
         sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
-            -e 's/{{API_KEY}}/$api_key/g' \
+            -e 's/{{API_KEY}}/$agent_api_key/g' \
             -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
             '$TEMPLATE' > $AGENTS_DIR/$agent/config.json
 
@@ -199,16 +217,16 @@ case "$cmd" in
     create)
         agent="$2"
         token="$3"
-        api_key="$4"
+        omniroute_admin_key="${4:-sk-458728dc98d56c7a-a83bf1-64af09f8}"
         user_chat_id="${5:-$DEFAULT_USER_CHAT_ID}"
         size_mb="${6:-$DEFAULT_SIZE_MB}"
-        create_agent "$agent" "$token" "$api_key" "$user_chat_id" "$size_mb"
+        create_agent "$agent" "$token" "$omniroute_admin_key" "$user_chat_id" "$size_mb"
         ;;
     *)
         echo "Usage: agentctl.sh <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  create <name> <token> <api_key> [user_chat_id] [size_mb] - Create and start new agent"
+        echo "  create <name> <token> [omniroute_admin_key] [user_chat_id] [size_mb] - Create and start new agent"
         echo "  start <name> [size_mb]  - Start existing agent"
         echo "  stop <name>            - Stop agent"
         echo "  restart <name>         - Restart agent"
