@@ -148,23 +148,21 @@ create_agent() {
     echo "OmniRoute key created: $agent_api_key"
 
     # Create config on srv from template
-    # Note: Remote paths are fixed - deploy directory on srv
     sshsrv "
-        DEPLOY_DIR=/home/openclaw/picoclaw-agents/deploy
         mkdir -p $AGENTS_DIR/$agent
         chmod 755 $AGENTS_DIR/$agent
 
         # Copy template and replace placeholders
-        sed -e 's/{{TELEGRAM_TOKEN}}/$token/g' \
-            -e 's/{{API_KEY}}/$agent_api_key/g' \
-            -e 's/{{USER_CHAT_ID}}/$user_chat_id/g' \
-            '\$DEPLOY_DIR/agent_config.template.json' > $AGENTS_DIR/$agent/config.json
+        sed -e 's/{{TELEGRAM_TOKEN}}/'"$token"'/g' \
+            -e 's/{{API_KEY}}/'"$agent_api_key"'/g' \
+            -e 's/{{USER_CHAT_ID}}/'"$user_chat_id"'/g' \
+            /home/openclaw/picoclaw-agents/deploy/agent_config.template.json > $AGENTS_DIR/$agent/config.json
 
         chmod 600 $AGENTS_DIR/$agent/config.json
 
         # Copy workspace templates
-        if [ -d '\$DEPLOY_DIR/templates' ]; then
-            cp -r '\$DEPLOY_DIR/templates/'* $AGENTS_DIR/$agent/
+        if [ -d /home/openclaw/picoclaw-agents/deploy/templates ]; then
+            cp -r /home/openclaw/picoclaw-agents/deploy/templates/* $AGENTS_DIR/$agent/
             # Replace agent name placeholder
             for f in $AGENTS_DIR/$agent/*.md; do
                 sed -i 's/{{AGENT_NAME}}/$agent/g' "\$f" 2>/dev/null || true
@@ -172,15 +170,15 @@ create_agent() {
         fi
 
         # Copy skills
-        if [ -d '\$DEPLOY_DIR/skills' ]; then
+        if [ -d /home/openclaw/picoclaw-agents/deploy/skills ]; then
             mkdir -p $AGENTS_DIR/$agent/skills
-            cp -r '\$DEPLOY_DIR/skills/'* $AGENTS_DIR/$agent/skills/
+            cp -r /home/openclaw/picoclaw-agents/deploy/skills/* $AGENTS_DIR/$agent/skills/
         fi
 
         # Copy yandex-stt script
-        if [ -d '\$DEPLOY_DIR/scripts' ]; then
+        if [ -d /home/openclaw/picoclaw-agents/deploy/scripts ]; then
             mkdir -p $AGENTS_DIR/$agent/.scripts
-            cp -r '\$DEPLOY_DIR/scripts/'* $AGENTS_DIR/$agent/.scripts/
+            cp -r /home/openclaw/picoclaw-agents/deploy/scripts/* $AGENTS_DIR/$agent/.scripts/
         fi
 
         cat $AGENTS_DIR/$agent/config.json
