@@ -1,31 +1,12 @@
 #!/usr/bin/env python3
-"""Распознавание голоса через Yandex SpeechKit"""
+"""Распознавание голоса через Yandex SpeechKit Proxy"""
 
 import os
 import sys
 import requests
 
-CREDS_FILE = os.path.expanduser("~/.yandex-creds")
-
-def load_creds():
-    """Загружает credentials из файла"""
-    creds = {}
-    if os.path.exists(CREDS_FILE):
-        with open(CREDS_FILE) as f:
-            for line in f:
-                if ":" in line:
-                    key, val = line.strip().split(":", 1)
-                    creds[key.strip()] = val.strip()
-    return creds.get("api_key", ""), creds.get("folder_id", "")
-
-API_KEY, FOLDER_ID = load_creds()
-
-if not API_KEY or not FOLDER_ID:
-    print("Error: ~/.yandex-creds not found or incomplete", file=sys.stderr)
-    print("Expected format:", file=sys.stderr)
-    print("  api_key: YOUR_API_KEY", file=sys.stderr)
-    print("  folder_id: YOUR_FOLDER_ID", file=sys.stderr)
-    sys.exit(1)
+# Прокси URL - по умолчанию host.docker.internal:5000 (для контейнеров на том же хосте)
+PROXY_URL = os.environ.get('YANDEX_STT_PROXY', 'http://host.docker.internal:5000/v1/audio/transcriptions')
 
 def recognize_voice(audio_path):
     if not os.path.exists(audio_path):
@@ -34,14 +15,11 @@ def recognize_voice(audio_path):
     with open(audio_path, "rb") as f:
         data = f.read()
 
-    url = f"https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?folderId={FOLDER_ID}&lang=ru-RU"
-    headers = {"Authorization": f"Api-Key {API_KEY}"}
-
     try:
-        r = requests.post(url, headers=headers, data=data, timeout=60)
+        r = requests.post(PROXY_URL, files={'file': ('audio.ogg', data, 'audio/ogg')}, timeout=60)
         if r.status_code == 200:
             result = r.json()
-            return result.get("result", "")
+            return result.get("text", "")
         else:
             return f"Error: {r.status_code} - {r.text}"
     except Exception as e:

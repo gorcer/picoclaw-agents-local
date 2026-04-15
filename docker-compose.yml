@@ -1,0 +1,54 @@
+services:
+  litellm:
+    image: docker.litellm.ai/berriai/litellm:main-stable
+    container_name: litellm
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    command: ["--config=/app/config.yaml"]
+    environment:
+      - DATABASE_URL=postgresql://llmproxy:sk-lite-lm-db-pass@db:5432/litellm
+      - STORE_MODEL_IN_DB=True
+      - LITELLM_MASTER_KEY=sk-lite-lm-m4st3r-k3y-12345
+      - FAL_API_KEY=5860ef6e-1d06-418a-a3a4-76999ebfbe85:d16167af88971711f921551990980aa6
+    restart: unless-stopped
+    depends_on:
+      - db
+      - yandex-proxy
+    networks:
+      - litellm-network
+
+  db:
+    image: postgres:16
+    container_name: litellm_db
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=llmproxy
+      - POSTGRES_PASSWORD=sk-lite-lm-db-pass
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - litellm-network
+
+  yandex-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.yandex
+    container_name: yandex-proxy
+    ports:
+      - "5000:5000"
+    environment:
+      - YANDEX_API_KEY=YANDEX_API_KEY_PLACEHOLDER
+      - YANDEX_FOLDER_ID=b1gl2l7ti32o40epfrad
+    restart: unless-stopped
+    networks:
+      - litellm-network
+
+networks:
+  litellm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

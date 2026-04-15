@@ -1,0 +1,35 @@
+model_list:
+  # fal.ai Image Generation
+  - model_name: flux-ultra
+    litellm_params:
+      model: fal_ai/fal-ai/flux-pro/v1.1-ultra
+      api_key: os.environ/FAL_API_KEY
+    model_info:
+      mode: image_generation
+
+  - model_name: flux-schnell
+    litellm_params:
+      model: fal_ai/fal-ai/flux/schnell
+      api_key: os.environ/FAL_API_KEY
+    model_info:
+      mode: image_generation
+
+  - model_name: stable-diffusion
+    litellm_params:
+      model: fal_ai/fal-ai/stable-diffusion-v35-medium
+      api_key: os.environ/FAL_API_KEY
+    model_info:
+      mode: image_generation
+
+general_settings:
+  master_key: sk-lite-lm-m4st3r-k3y-12345
+  store_model_in_db: true
+  pass_through_endpoints:
+    - path: "/v1/audio/yandex/speech"
+      target: "http://yandex-proxy:5000/v1/audio/speech"
+      headers:
+        content-type: "application/json"
+    - path: "/v1/audio/yandex/transcriptions"
+      target: "http://yandex-proxy:5000/v1/audio/transcriptions"
+      headers:
+        content-type: "multipart/form-data"

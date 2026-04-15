@@ -1,0 +1,6 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install flask flask-cors requests gunicorn
+COPY yandex_proxy.py /app/
+ENV PYTHONUNBUFFERED=1
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "yandex_proxy:app"]
