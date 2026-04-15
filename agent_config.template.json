@@ -26,7 +26,7 @@
   },
   "model_list": [{
     "model_name": "minimax",
-    "model": "MiniMax-M2.7",
+    "model": "minimax-with-openrouter-fallback",
     "api_base": "http://62.106.66.13:3000/v1",
     "api_keys": ["{{API_KEY}}"],
     "extra_body": {
