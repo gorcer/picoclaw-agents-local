@@ -26,6 +26,13 @@ AGENTS_DIR="$HOME/picoclaw-agents"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/agent_config.template.json"
 
+# Load .env if exists
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
 # Default disk limit in MB
 DEFAULT_SIZE_MB=100
 
@@ -100,13 +107,18 @@ delete_agent() {
 create_agent() {
     local agent="$1"
     local token="$2"
-    local omniroute_admin_key="${3:-sk-458728dc98d56c7a-a83bf1-64af09f8}"
-    local user_chat_id="${4:-$DEFAULT_USER_CHAT_ID}"
-    local limit="${5:-$DEFAULT_SIZE_MB}"
+    local user_chat_id="${3:-$DEFAULT_USER_CHAT_ID}"
+    local limit="${4:-$DEFAULT_SIZE_MB}"
+    local omniroute_admin_key="${OMNIROUTE_ADMIN_KEY:-}"
 
     if [[ -z "$agent" || -z "$token" ]]; then
         echo "Error: name and telegram_token required"
-        echo "Usage: agentctl.sh create <name> <telegram_token> [omniroute_admin_key] [user_chat_id] [size_mb]"
+        echo "Usage: agentctl.sh create <name> <telegram_token> [user_chat_id] [size_mb]"
+        exit 1
+    fi
+
+    if [[ -z "$omniroute_admin_key" ]]; then
+        echo "Error: OMNIROUTE_ADMIN_KEY not set in .env file"
         exit 1
     fi
 
@@ -219,16 +231,15 @@ case "$cmd" in
     create)
         agent="$2"
         token="$3"
-        omniroute_admin_key="${4:-sk-458728dc98d56c7a-a83bf1-64af09f8}"
-        user_chat_id="${5:-$DEFAULT_USER_CHAT_ID}"
-        size_mb="${6:-$DEFAULT_SIZE_MB}"
-        create_agent "$agent" "$token" "$omniroute_admin_key" "$user_chat_id" "$size_mb"
+        user_chat_id="${4:-$DEFAULT_USER_CHAT_ID}"
+        size_mb="${5:-$DEFAULT_SIZE_MB}"
+        create_agent "$agent" "$token" "$user_chat_id" "$size_mb"
         ;;
     *)
         echo "Usage: agentctl.sh <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  create <name> <token> [omniroute_admin_key] [user_chat_id] [size_mb] - Create and start new agent"
+        echo "  create <name> <telegram_token> [user_chat_id] [size_mb] - Create and start new agent"
         echo "  start <name> [size_mb]  - Start existing agent"
         echo "  stop <name>            - Stop agent"
         echo "  restart <name>         - Restart agent"
