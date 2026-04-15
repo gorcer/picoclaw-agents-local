@@ -22,7 +22,7 @@ set -e
 
 cmd="$1"
 HOST="${SSH_HOST:-srv}"
-AGENTS_DIR="$HOME/picoclaw-agents"
+AGENTS_DIR="/home/openclaw/picoclaw-agents"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/agent_config.template.json"
 
