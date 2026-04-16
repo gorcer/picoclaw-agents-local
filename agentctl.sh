@@ -166,6 +166,8 @@ create_agent() {
     start_agent "$agent" "$limit"
 }
 
+name="$2"
+size_mb="$3"
 case "$cmd" in
     start)
         if [[ -z "$name" ]]; then
