@@ -62,7 +62,7 @@ start_agent() {
         ghcr.io/sipeed/picoclaw:latest
 
     echo "Installing Python and dependencies..."
-    docker exec picoclaw-$agent apk add --no-cache python3 py3-pip
+    docker exec picoclaw-$agent apk add --no-cache python3 py3-pip curl
     docker exec picoclaw-$agent pip3 install --break-system-packages requests pyyaml
 
     echo "Started. Recent logs:"
