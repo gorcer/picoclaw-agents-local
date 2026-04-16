@@ -2,7 +2,7 @@
   "version": 2,
   "agents": {
     "defaults": {
-      "workspace": "/workspace",
+      "workspace": "/root/.picoclaw",
       "model_name": "minimax",
       "restrict_to_workspace": false
     }
